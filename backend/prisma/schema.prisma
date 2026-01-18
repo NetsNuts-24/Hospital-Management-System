@@ -1,0 +1,117 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id Int @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  name String
+  phone String @unique
+  email String @unique
+  password String 
+  role UserRole @default(PATIENT)
+
+  doctorProfile DoctorProfile?
+  patientProfile PatientProfile?
+}
+
+model DoctorProfile {
+  id Int @id @default(autoincrement())
+  department Department @relation(fields: [departmentId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+  userId Int @unique
+  departmentId Int @unique
+  timeslots TimeSlot[]
+  specialization String?
+  isActive Boolean @default(true)
+  appointments Appointment[]
+}
+
+model Department {
+  id Int @id @default(autoincrement())
+  name String
+
+  doctorProfiles DoctorProfile[]
+}
+
+model PatientProfile {
+  id Int @id @default(autoincrement())
+  user User @relation(fields: [userId], references: [id])
+  userId Int @unique
+  allergies String?
+  pastIllnesses String?
+  lastUpdated DateTime @updatedAt // Check if this works during deployment
+
+  appointments Appointment[]
+}
+
+model Appointment {
+  id Int @id @default(autoincrement())
+  patientProfile PatientProfile @relation(fields: [patientProfileId], references: [id])
+  patientProfileId Int @unique
+  doctorProfile DoctorProfile @relation(fields: [doctorProfileId], references: [id])
+  doctorProfileId Int @unique
+  date DateTime @db.Date // Time is not set in this
+  timeSlot TimeSlot @relation(fields: [timeSlotId], references: [id])
+  timeSlotId Int @unique
+  status AppointmentStatus
+  createdBy UserRole
+  cancelledBy UserRole
+  cancelReason CancelReason @default(OTHER)
+
+  prescriptions Prescriptions[]
+}
+
+model TimeSlot {
+  id Int @id @default(autoincrement())
+  startTime DateTime @db.Time(0) // Date is not set in this
+
+  appointments Appointment[]
+  doctorProfiles DoctorProfile[]
+}
+
+model MedicalDocument {
+  id Int @id @default(autoincrement())
+  name String
+  url String
+  uploadedBy UserRole @default(DOCTOR)
+  uploadedAt DateTime @default(now())
+}
+
+model Prescriptions {
+  id Int @id @default(autoincrement())
+  appointment Appointment @relation(fields: [appointmentId], references: [id])
+  appointmentId Int @unique
+  content String
+}
+
+enum CancelReason {
+  PATIENT_REQUEST
+  DOCTOR_UNAVAILABLE
+  OTHER
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CANCELLED
+  COMPLETED
+}
+
+enum UserRole {
+  PATIENT
+  DOCTOR
+  RECEPTIONIST
+  ADMIN
+}
